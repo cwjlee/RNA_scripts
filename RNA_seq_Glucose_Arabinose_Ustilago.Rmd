@@ -1,0 +1,313 @@
+---
+title: "RNA-seq_DNJ4"
+author: "Chris"
+date: "13/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## R Markdown
+
+This script is analysing Seans RNAseq dataset looking the the effects of arabinose and glucose on different strains
+
+
+#First, Specify the comparison you would like to look at. 
+
+-Primary-
+1) 2glucose v 2arabinose, 
+2) 2glucose v 55 glucose, 
+3) 2ara v 55ara,
+4) 2glu v 56glu, 
+5) 55glu v 55ara, 
+6) 56glu v  56ara, 
+7) 2glu v 37glu,
+8) 2ara v 37ara
+  
+```{r, Input Variabels, include=TRUE, echo=FALSE}
+comparison = "3"
+```
+
+```{r, loading libraries}
+library("tidyverse")
+library("gridExtra")
+library("ggplot2")
+#Run the biomanger code below if you are running DESEQ2 for the first time on this computer.
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+   # install.packages("BiocManager")
+   # BiocManager::install("DESeq2")
+
+library('DESeq2')
+library("dplyr")
+library("rlang")
+
+```
+
+```{r, Reading in the Gene Counts}
+#Changing the directory to where the gene counts are
+setwd("C:/Users/cwjle/Desktop/GradWork/Data/2020/RNA-Seq/Sean_Glucose_Arabinose/Read_Counts_from_STAR")
+
+#reading in the list of files in the directory
+temp = list.files()
+#importing all the counts into a list of dataframes
+myfiles = lapply(temp, read.table)
+
+#keeping the sample names of the files
+names(myfiles) = temp
+
+#Getting the unstranded counts and removing the first 4 rows of metadata
+for (i in 1:length(myfiles)){
+  myfiles[[i]] = myfiles[[i]][-c(1:4),c(1:2)]
+  colnames(myfiles[[i]]) = c("GeneID",temp[[i]])
+}
+
+#Gathering all the counts within a single dataframe
+AllCounts = cbind(myfiles[[1]],myfiles[[2]][2],myfiles[[3]][2],myfiles[[4]][2],myfiles[[5]][2],myfiles[[6]][2],myfiles[[7]][2],myfiles[[8]][2],myfiles[[9]][2],myfiles[[10]][2],myfiles[[11]][2],myfiles[[12]][2],myfiles[[13]][2],myfiles[[14]][2],myfiles[[15]][2],myfiles[[16]][2],myfiles[[17]][2],myfiles[[18]][2],myfiles[[19]][2],myfiles[[20]][2],myfiles[[21]][2],myfiles[[22]][2],myfiles[[23]][2],myfiles[[24]][2])
+
+#Changing the gene name column to the row names and getting rid of the gene name column
+rownames(AllCounts) = AllCounts$GeneID
+AllCounts = AllCounts[,-1]
+
+#writing this dataframe to a counts.csv file. 
+write.csv(as.data.frame(AllCounts), file="Allgenecounts.csv")
+
+```
+
+```{r}
+#Reading in the metadata
+coldata = read.csv("coldata.csv",header = TRUE)
+
+#Moving the samples names from a column to  the rownames
+rownames(coldata) = coldata$X
+coldata = coldata[,-1]
+
+#Changing the strain column to a factor for dds object
+coldata$strain = factor(coldata$strain)
+#building the dds object using the AllCounts, coldata, and strain as a placeholder design factor that we can change later.
+dds <- DESeqDataSetFromMatrix(countData = AllCounts,
+                              colData = coldata,
+                              design = ~ treatment)
+
+#Creating a column called group for identification of strain and treatment groups.
+dds$group = factor(paste(coldata$strain,coldata$treatment,sep = "_"))
+
+#Changing the design factor to group instead of strain. This way we can pull out the comparisons we want. 
+design(dds) = ~group
+
+#getting rid of genes with counts lower than 1
+keep <- rowSums(counts(dds)) >= 1
+dds <- dds[keep,]
+
+#Running the DESEQ funciton to generate log2fold changes
+dds <- DESeq(dds)
+
+```
+
+```{r, Filtering by user input, include=TRUE, echo=FALSE}
+#extracting comparison information based on the comparison variable specified at the top of the script. Using contrast function to pull out two groups of interest.
+#Specifying comparison in a more descriptive name to make subdirectories for output files and plots.
+if  (comparison == 1){
+  res <- results(dds, contrast=c("group","2_arabinose","2_glucose"))
+  comparison = "2glucose v 2arabinose"
+  
+} else if (comparison == 2){
+  res <- results(dds, contrast=c("group","2_arabinose","55_glucose"))
+  comparison = "2glucose v 55 glucose"
+  
+} else if (comparison == 3){ 
+  res <- results(dds, contrast=c("group","2_arabinose","55_arabinose"))
+  comparison = "2arabinose v 55arabinose"
+} else if (comparison == 4){
+  res <- results(dds, contrast=c("group","2_glucose","56_glucose"))
+  comparison = "2glucose v 56glucose"
+  
+} else if (comparison == 5){
+  res <- results(dds, contrast=c("group","55_glucose","55_arabinose"))
+  comparison = "55glucose v 55arabinose"
+  
+} else if (comparison == 6){
+  res <- results(dds, contrast=c("group","56_glucose","56_arabinose"))
+  comparison = "56glucose v 56arabinose"
+  
+} else if (comparison == 7){
+  res <- results(dds, contrast=c("group","2_glucose","37_glucose"))
+  comparison = "2glucose v 37glucose"
+  
+} else if (comparison == 8){
+  res <- results(dds, contrast=c("group","2_arabinose","37_arabinose"))
+  comparison = "2arabinose v 37arabinose"
+  
+}
+
+#Creating subfolder and changing working directory to it.
+dir.create(paste(comparison))
+setwd(paste(comparison))
+```
+
+```{r}
+#Changing the results object to a data.frame and exporting the raw Log2FoldChange results along with genes with pvalue < 0.05
+res = as.data.frame(res)
+
+res_PNA <- as.data.frame(res[,c(2:5)])
+write.csv(res_PNA, file=paste(comparison,"_Raw_results.csv"))
+
+#filtering for significant genes.
+res_SIG = as.data.frame(res) %>%
+  filter(pvalue < 0.05)
+write.csv(res_SIG, file=paste(comparison,"_pvalue0.05_results.csv"))
+
+
+```
+
+
+
+###############################################################################################################
+###############################################################################################################
+
+###Analysis
+
+###############################################################################################################
+###############################################################################################################
+
+
+```{r, PCA plot}
+
+
+pdf("PCA_plot_All_groups.pdf",width=6,height=4,paper='special')
+
+vsd <- vst(dds)
+plotPCA(vsd, "group")
+
+dev.off()
+
+```
+
+This is currently bugged because dds needs to be only 2 groups
+#```{r, testing viusilzation methods}
+setwd(paste(comparison))
+
+#this package creates a webpage where normalized gene counts can be compared for any gene.
+#BiocManager::install("ReportingTools")
+library("ReportingTools")
+
+#This line creates a report with information about our comparison. All files will be saved in the "reports" folder that is generated. 
+des2Report <- HTMLReport(shortName = paste(comparison),
+   title = 'RNA-seq analysis of differential expression using DESeq2',
+   reportDirectory = "./reports")
+
+#This creates the HTML and graphs. The only input here that matters is the dds_DESEQ object
+publish(dds,des2Report, pvalueCutoff=0.05,
+   annotation.db="org.Mm.eg.db", factor = colData(dds)$dex,
+   reportDir="./reports")
+
+finish(des2Report)
+
+#```
+
+
+```{r, A MAplot}
+setwd(paste(comparison))
+
+#this creates the MAplot to show genes distributed by expresison on the x axis and log2foldchange on the y axis 
+
+#changes padj to a logical factor
+res$padj = as.logical(res$padj) 
+
+#takes the mean expression, the log2foldchange, and the padj columns
+res_plotMA = res[,c(1,2,6)]
+
+#Opens and creates the pdf file
+pdf("MAplot.pdf",width=6,height=4,paper='special')
+
+#Makes the plot showing genes as points between -6 and 6 log2foldchange
+plotMA(res_plotMA, ylim=c(-6,6))
+
+#closes the pdf file
+dev.off()
+```
+
+```{r, volcano plot}
+setwd(paste(comparison))
+
+#This code creates a volcano plot highlighting the differentially expressed genes above and below a certain log2foldchange 
+
+#Creating and opening the pdf file
+pdf("Volcano_plot.pdf",width=6,height=4,paper='special')
+
+
+par(mar=c(5,5,5,5), cex=1.0, cex.main=1.4, cex.axis=1.4, cex.lab=1.4)
+topT <- as.data.frame(res)
+
+#Adjusted P values (FDR Q values)
+with(topT, plot(log2FoldChange, -log10(padj), pch=20, main="Volcano plot", cex=1.0, xlab=bquote(~Log[2]~fold~change), ylab=bquote(~-log[10]~Q~value)))
+
+with(subset(topT, padj<0.05 & abs(log2FoldChange)>2.5), points(log2FoldChange, -log10(padj), pch=20, col="red", cex=0.5))
+
+#with(subset(topT, padj<0.05 & abs(log2FoldChange)>2), text(log2FoldChange, -log10(padj), labels=subset(rownames(topT), topT$padj<0.05 & abs(topT$log2FoldChange)>2), cex=0.8, pos=3))
+
+#Add lines for absolute FC>2 and P-value cut-off at FDR Q<0.05
+abline(v=0, col="black", lty=3, lwd=1.0)
+abline(v=-2, col="black", lty=4, lwd=2.0)
+abline(v=2, col="black", lty=4, lwd=2.0)
+abline(h=-log10(max(topT$pvalue[topT$padj<0.05], na.rm=TRUE)), col="black", lty=4, lwd=2.0)
+dev.off()
+
+```
+
+
+
+
+```{r, Gene CLustering }
+setwd(paste(comparison))
+
+
+#Here we are creating heatmaps showing the n number most significant genes
+library("genefilter")
+library("pheatmap")
+rld = rlog(dds,blind = FALSE)
+
+#this line collects the 20 most significant genes 
+topVarGenes <- head(order(-rowVars(assay(rld))),20)
+mat <- assay(rld)[ topVarGenes, ]
+mat <- mat - rowMeans(mat)
+df <- as.data.frame(colData(rld)[,c("strain","treatment")])
+
+#opening and creating the pdf file 
+pdf(paste(comparison,"20","Sig genes Heatmap.pdf"),width=6,height=4,paper='special')
+
+#heatmap plotting function
+pheatmap(mat, annotation_col=df, show_colnames = T, show_rownames = T)
+
+#closing the pdf fiel
+while (!is.null(dev.list()))  dev.off()
+```
+
+
+```{r}
+dds_test = dds[,c(1:3)]
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

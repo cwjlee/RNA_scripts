@@ -1,0 +1,419 @@
+---
+title: "RNA-seq_DNJ4"
+author: "Chris"
+date: "13/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This script is analysing Linda's DNJ4 mtuant RNASeq data under hydroxyurea conditions of 0mM and 25mM.
+
+Analysis preformed:
+Principle Component Analysis
+Differential Experssion Analysis 
+  
+
+#First, Specify the comparison you would like to look at. 
+
+-Primary-
+  Comparison 1: WT vs. DNJ4
+  Comparison 2: WTHU vs. DNJ4HU
+  Comparison 3: WT vs. WTHU
+  Comparison 4: DNJ4 vs. DNJ4HU
+  
+#Second, Specify any unique gene of which the normalzied expression is of interest to you.
+```{r, Input Variabels, include=TRUE, echo=FALSE}
+comparison = "1"
+gene_factor ="CNAG_00002"
+```
+
+```{r, loading libraries}
+library("tidyverse")
+library("gridExtra")
+library("ggplot2")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+    BiocManager::install("DESeq2")
+
+library('DESeq2')
+library("dplyr")
+library("rlang")
+
+```
+
+```{r, Reading in the Gene Counts}
+WT01 = read.table("ReadsPerGene/WT01_trimmedReadsPerGene.out.tab")
+WT02 = read.table("ReadsPerGene/WT02_trimmedReadsPerGene.out.tab")
+WT03 = read.table("ReadsPerGene/WT03_trimmedReadsPerGene.out.tab")
+WTHU01 = read.table("ReadsPerGene/WTHU01_trimmedReadsPerGene.out.tab")
+WTHU02 = read.table("ReadsPerGene/WTHU02_trimmedReadsPerGene.out.tab")
+WTHU03 = read.table("ReadsPerGene/WTHU03_trimmedReadsPerGene.out.tab")
+DNJ401 = read.table("ReadsPerGene/DNJ401_trimmedReadsPerGene.out.tab")
+DNJ402 = read.table("ReadsPerGene/DNJ402_trimmedReadsPerGene.out.tab")
+DNJ403 = read.table("ReadsPerGene/DNJ403_trimmedReadsPerGene.out.tab")
+DNJ4HU01 = read.table("ReadsPerGene/DNJ4HU01_trimmedReadsPerGene.out.tab")
+DNJ4HU02 = read.table("ReadsPerGene/DNJ4HU02_trimmedReadsPerGene.out.tab")
+DNJ4HU03 = read.table("ReadsPerGene/DNJ4HU03_trimmedReadsPerGene.out.tab")
+```
+
+```{r, Removing the top 4 rows and extracting unstranded counts (second column)}
+WT01 = WT01[-(1:4),(1:2)]
+colnames(WT01) <- c("GeneID","WT01")
+WT02 = WT02[-(1:4),(1:2)]
+colnames(WT02) <- c("GeneID","WT02")
+WT03 = WT03[-(1:4),(1:2)]
+colnames(WT03) <- c("GeneID","WT03")
+
+WTHU01 = WTHU01[-(1:4),(1:2)]
+colnames(WTHU01) <- c("GeneID","WTHU01")
+WTHU02 = WTHU02[-(1:4),(1:2)]
+colnames(WTHU02) <- c("GeneID","WTHU02")
+WTHU03 = WTHU03[-(1:4),(1:2)]
+colnames(WTHU03) <- c("GeneID","WTHU03")
+
+DNJ401 = DNJ401[-(1:4),(1:2)]
+colnames(DNJ401) <- c("GeneID","DNJ401")
+DNJ402 = DNJ402[-(1:4),(1:2)]
+colnames(DNJ402) <- c("GeneID","DNJ402")
+DNJ403 = DNJ403[-(1:4),(1:2)]
+colnames(DNJ403) <- c("GeneID","DNJ403")
+
+DNJ4HU01 = DNJ4HU01[-(1:4),(1:2)]
+colnames(DNJ4HU01) <- c("GeneID","DNJ4HU01")
+DNJ4HU02 = DNJ4HU02[-(1:4),(1:2)]
+colnames(DNJ4HU02) <- c("GeneID","DNJ4HU02")
+DNJ4HU03 = DNJ4HU03[-(1:4),(1:2)]
+colnames(DNJ4HU03) <- c("GeneID","DNJ4HU03")
+
+
+
+```
+
+
+```{r, Inner_Join to combined all samples}
+GeneCountsAll =  WT01 %>% inner_join(WT02 %>% inner_join(WT03 %>% inner_join(WTHU01 %>% inner_join(WTHU02 %>% inner_join(WTHU03 %>% inner_join(DNJ401 %>% inner_join(DNJ402 %>% inner_join(DNJ403 %>%  inner_join(DNJ4HU01 %>% inner_join(DNJ4HU02 %>% inner_join(DNJ4HU03, by = "GeneID")))))))))))
+rownames(GeneCountsAll) = GeneCountsAll$GeneID
+GeneCountsAll = GeneCountsAll[,-1]
+
+write.csv(as.data.frame(GeneCountsAll), file="genecounts.csv")
+
+```
+
+```{r, Biulding the Metadata Dataframe}
+#metadataAll = data.frame(sample = c("WT01","WT02","WT03","WTHU01","WTHU02","WTHU03","DNJ401","DNJ402","DNJ403","DNJ4HU01","DNJ4HU02","DNJ4HU03"), treatment = c("control","control","control","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea","control","control","control","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea"),strain = c("H99","H99","H99","H99","H99","H99","DNJ4","DNJ4","DNJ4","DNJ4","DNJ4","DNJ4") )
+#rownames(metadataAll) = metadataAll$sample
+#metadataAll$group = paste(metadataAll$strain,metadataAll$treatment)
+```
+
+```{r, Filtering by user input, include=TRUE, echo=FALSE}
+
+if  (comparison == 1){
+  GeneCounts =  WT01 %>% inner_join(WT02 %>% inner_join(WT03 %>% inner_join(DNJ401 %>% inner_join(DNJ402 %>% inner_join(DNJ403, by = "GeneID")))))
+  rownames(GeneCounts) = GeneCounts$GeneID
+  GeneCounts = GeneCounts[,-1]
+  metadata = data.frame(sample = c("WT01","WT02","WT03","DNJ401","DNJ402","DNJ403"),
+                      treatment = c("control","control","control","control","control","control"),
+                      strain = c("H99","H99","H99","DNJ4","DNJ4","DNJ4") )
+  rownames(metadata) = metadata$sample
+  metadata$group = paste(metadata$strain,metadata$treatment)  
+  relevel_factor = "H99"
+  design_factor = "strain"
+  comparison ="WT_DNJ4"
+  
+} else if (comparison == 2){
+  GeneCounts =  WTHU01 %>% inner_join(WTHU02 %>% inner_join(WTHU03 %>% inner_join(DNJ4HU01 %>% inner_join(DNJ4HU02 %>% inner_join(DNJ4HU03, by = "GeneID")))))
+  rownames(GeneCounts) = GeneCounts$GeneID
+  GeneCounts = GeneCounts[,-1]
+  metadata = data.frame(sample = c("WTHU01","WTHU02","WTHU03","DNJ4HU01","DNJ4HU02","DNJ4HU03"),
+                      treatment = c("25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea"),
+                      strain = c("H99","H99","H99","DNJ4","DNJ4","DNJ4") )
+  rownames(metadata) = metadata$sample
+  metadata$group = paste(metadata$strain,metadata$treatment)  
+   relevel_factor = "H99"
+  design_factor = "strain"
+  comparison ="WTHU_DNJ4HU"
+  
+} else if (comparison == 3){
+  GeneCounts =  WT01 %>% inner_join(WT02 %>% inner_join(WT03 %>% inner_join(WTHU01 %>% inner_join(WTHU02 %>% inner_join(WTHU03, by = "GeneID")))))
+  rownames(GeneCounts) = GeneCounts$GeneID
+  GeneCounts = GeneCounts[,-1]
+  metadata = data.frame(sample = c("WT01","WT02","WT03","WTHU01","WTHU02","WTHU03"),
+                      treatment = c("control","control","control","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea"),
+                      strain = c("H99","H99","H99","H99","H99","H99") )
+  rownames(metadata) = metadata$sample
+  metadata$group = paste(metadata$strain,metadata$treatment) 
+  relevel_factor = "control"
+  design_factor = "treatment"
+  comparison ="WT_WTHU"
+      
+} else if (comparison == 4){
+  GeneCounts =  DNJ401 %>% inner_join(DNJ402 %>% inner_join(DNJ403 %>% inner_join(DNJ4HU01 %>% inner_join(DNJ4HU02 %>% inner_join(DNJ4HU03, by = "GeneID")))))
+  rownames(GeneCounts) = GeneCounts$GeneID
+  GeneCounts = GeneCounts[,-1]
+  metadata = data.frame(sample = c("DNJ401","DNJ402","DNJ403","DNJ4HU01","DNJ4HU02","DNJ4HU03"),
+                      treatment = c("control","control","control","25mM_Hydroxyurea","25mM_Hydroxyurea","25mM_Hydroxyurea"),
+                      strain = c("DNJ4","DNJ4","DNJ4","DNJ4","DNJ4","DNJ4") )
+  rownames(metadata) = metadata$sample
+  metadata$group = paste(metadata$strain,metadata$treatment)
+  relevel_factor = "control"
+  design_factor = "treatment"
+  comparison ="DNJ4_DNJ4HU"
+  
+}
+
+```
+
+```{r, this is for the expression matrix}
+
+countmatrix = data.frame("WT"=c(rowSums(GeneCounts[1:3])/3),
+                         "DNJ4"=c(rowSums(GeneCounts[4:6])/3))
+keepcounts <- rowSums((countmatrix)) >= 1
+countmatrix <- countmatrix[keepcounts,]
+
+countnames = data.frame("NAMES" = rownames(countmatrix),
+                        "DESCRIPTION" = "na")
+
+expression = cbind(countnames,countmatrix)
+
+
+```
+
+```{r, Biulding DEseq2 dataset}
+dds <- DESeqDataSetFromMatrix(countData = GeneCounts,
+                              colData = metadata,
+                              design = as.formula(paste("~",design_factor)))
+```
+
+```{r, Minimal pre-filtering to remove counts lower than 1}
+keep <- rowSums(counts(dds)) >= 1
+dds <- dds[keep,]
+
+```
+
+###############################################################################################################
+###############################################################################################################
+
+###Analysis
+
+###############################################################################################################
+###############################################################################################################
+
+
+```{r, PCA plot}
+vsd <- vst(dds)
+plotPCA(vsd, "group")
+```
+
+```{r, Differential Analysis}
+dds$dex <- relevel(dds[[design_factor]],relevel_factor)
+dds_DESEQ = DESeq(dds)
+
+res <- results(dds_DESEQ)
+res_PNA <- as.data.frame(res[,c(2:5)])
+write.csv(as.data.frame(res_PNA), file=paste(comparison,"_results_forPNA.csv"))
+
+
+mcols(res, use.names=TRUE)
+summary(res)
+
+length(res$padj)
+sum(res$padj<0.05,na.rm=TRUE)
+
+write.csv(as.data.frame(res), file=paste(comparison,"_results.csv"))
+
+```
+
+
+```{r, Normalized Gene Expression for Specific genes}
+topGene <- rownames(res)[which.min(res$padj)]
+plotCounts(dds, gene= gene_factor, intgroup= design_factor)
+
+```
+
+```{r, A MA-plot}
+plotMA(res, ylim=c(-5,5))
+```
+
+```{r, volcano plot}
+par(mar=c(5,5,5,5), cex=1.0, cex.main=1.4, cex.axis=1.4, cex.lab=1.4)
+
+topT <- as.data.frame(res)
+
+#Adjusted P values (FDR Q values)
+with(topT, plot(log2FoldChange, -log10(padj), pch=20, main="Volcano plot", cex=1.0, xlab=bquote(~Log[2]~fold~change), ylab=bquote(~-log[10]~Q~value)))
+
+with(subset(topT, padj<0.05 & abs(log2FoldChange)>1), points(log2FoldChange, -log10(padj), pch=20, col="red", cex=0.5))
+
+#with(subset(topT, padj<0.05 & abs(log2FoldChange)>2), text(log2FoldChange, -log10(padj), labels=subset(rownames(topT), topT$padj<0.05 & abs(topT$log2FoldChange)>2), cex=0.8, pos=3))
+
+#Add lines for absolute FC>2 and P-value cut-off at FDR Q<0.05
+abline(v=0, col="black", lty=3, lwd=1.0)
+abline(v=-2, col="black", lty=4, lwd=2.0)
+abline(v=2, col="black", lty=4, lwd=2.0)
+abline(h=-log10(max(topT$pvalue[topT$padj<0.05], na.rm=TRUE)), col="black", lty=4, lwd=2.0)
+```
+
+
+
+
+```{r, Gene CLustering }
+library("genefilter")
+library("pheatmap")
+rld = rlog(dds,blind = FALSE)
+
+topVarGenes <- head(order(-rowVars(assay(rld))),20)
+mat <- assay(rld)[ topVarGenes, ]
+mat <- mat - rowMeans(mat)
+df <- as.data.frame(colData(rld)[,c("strain","treatment")])
+
+pdf(paste(comparison,"20","Sig genes Heatmap.pdf"),width=6,height=4,paper='special')
+
+pheatmap(mat, annotation_col=df, show_colnames = T, show_rownames = F)
+
+
+while (!is.null(dev.list()))  dev.off()
+
+
+############################################################################################
+mat <- assay(vsd)[ head(order(res$padj),sum(res$padj<0.05,na.rm=TRUE)), ]
+mat <- mat - rowMeans(mat)
+df <- as.data.frame(colData(vsd)[,c("strain","treatment")])
+
+pdf(paste(comparison,sum(res$padj<0.05,na.rm=TRUE),"Sig genes Heatmap.pdf"),width=6,height=4,paper='special')
+
+pheatmap(mat, annotation_col=df, show_colnames = T, show_rownames = F)
+
+
+while (!is.null(dev.list()))  dev.off()
+```
+
+
+
+```{r, converting gene names to JEC21}
+if (!requireNamespace("BiocManager", quietly=TRUE)) +
+  install.packages("BiocManager")
+  BiocManager::install(c("gage","gageData"))
+library("gage")
+library("pathview")
+data(korg)
+head(korg)
+korg[grep("cryptococcus", korg[,2], ignore.case=T),] 
+
+#checking what formats are suppported for crypto
+ri=korg[,"kegg.code"]=="cne"
+korg[ri,]
+
+#Define what I need from DEseq2 part
+deseq2.cn=res_PNA # need the foldchange values
+deseq2.cn$GeneID = rownames(res)
+
+geneconverttable = read.csv("Crypto_gene_ID_JEC21_vs_H99.csv")
+geneconverttableFUNGIDB = read.csv("May_2021_H99_JEC21_orthologs.csv")
+
+colnames(geneconverttable)[which(names(geneconverttable) == "broadID..H99.")] <- "GeneID"
+
+geneIDS_foldchange = inner_join(deseq2.cn, geneconverttable, by = "GeneID")
+
+JECgenes = na.omit(geneIDS_foldchange)
+names = JECgenes$JEC21.ortholog
+rownames(JECgenes) = make.names(names, unique=TRUE)
+colnames(JECgenes)[which(names(JECgenes) == "JEC21.ortholog")] <- "JECgeneIDS"
+
+JECgenes_vector = (JECgenes[,-2])
+names(JECgenes_vector) = rownames(JECgenes)
+
+
+#NEED TO CHANGE GENE NAMES FROM CNA  TO cne(kegg numbers) need the entrez numbers to be able to map to pathways.
+
+
+library("biomaRt")
+
+listMarts()
+ensembl=useMart("ensembl")
+
+ensembl_crypto <- useEnsemblGenomes(biomart = "fungi_mart", 
+                                         dataset = "cneoformans_eg_gene")
+
+entrez_ids = getBM(attributes = c("ensembl_gene_id", "entrezgene_id"),
+      filters = "ensembl_gene_id",
+      values = geneconverttable$JEC21.ortholog,
+      mart = ensembl_crypto
+)
+colnames(entrez_ids)[which(names(entrez_ids) == "ensembl_gene_id")] <- "JECgeneIDS"
+
+entrez_ids_res = inner_join(JECgenes,entrez_ids,by = "JECgeneIDS", copy = TRUE)
+entrez_ids_res = na.omit(entrez_ids_res)
+
+
+entrez_ids_res =entrez_ids_res[!duplicated(entrez_ids_res$entrezgene_id), ]
+
+rownames(entrez_ids_res) = entrez_ids_res$entrezgene_id
+
+entrez_ids_res_vector = entrez_ids_res[,1]
+
+names(entrez_ids_res_vector)= rownames(entrez_ids_res)
+
+```
+
+
+```{r, GAGE function analysis}
+kg.cne=kegg.gsets(species ="cne") #selecting crypto sets
+kegg.cne=kg.cne$kg.sets[kg.cne$sigmet.idx] # selecting crypto set indices 
+
+length(kegg.cne) #These next two lines are just to look at it
+lapply(kegg.cne[1:10], head)
+
+cn.kegg.p <- gage(JECgenes_vector, gsets = kegg.cne, ref = NULL, samp = NULL) #uses the foldchange and adjusted row names with the kegg.cne set
+
+
+sel <- cn.kegg.p$greater[, "p.val"] < 0.05 &
++ !is.na(cn.kegg.p$greater[, "p.val"])
+path.ids <- rownames(cn.kegg.p$greater)[sel]
+sel.l <- cn.kegg.p$less[, "p.val"] < 0.05 &
++ !is.na(cn.kegg.p$less[,"p.val"])
+path.ids.l <- rownames(cn.kegg.p$less)[sel.l]
+path.ids2 <- substr(c(path.ids, path.ids.l), 1, 8)
+
+
+```
+
+
+
+```{r, dir}
+setwd(file.path("figures/GAGE_pathway_analysis/"))
+main = paste(comparison)
+dir.create(main)
+```
+
+```{r,pathview}
+require(pathview)
+out.suffix="deseq2" #required for pathview visualizaiton
+pv.out.list <- sapply(path.ids2, function(pid) pathview(gene.data = entrez_ids_res_vector, 
+                                                          pathway.id = pid,species = "cne", 
+                                                          out.suffix=out.suffix))
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r, Session INFO}
+sessionInfo()
+```
+
+
+
+
