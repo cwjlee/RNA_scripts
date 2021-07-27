@@ -1,0 +1,416 @@
+---
+title: "plots for GSEA"
+author: "Chris"
+date: "24/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, GSEA NOT YET AUTOMATED}
+library("tidyverse")
+library("gridExtra")
+library("ggplot2")
+library("dplyr")
+
+
+setwd("C:/Users/cwjle/Desktop/GradWork/Data/2020/RNA-Seq/DNJ4_hydroxyurea")
+
+wtvswthu = read.csv("wtvswthu_025.csv")
+names = colnames(wtvswthu)
+names = gsub("EnrichmentMap..","",names)
+
+dnj4vsdnj4hu = read.csv("dnj4vsdnj4hu_025.csv")
+wtvsdnj4 = read.csv("wtvsdnj4_025.csv")
+wthuvsdnj4hu = read.csv("wthuvsdnj4hu_025.csv")
+
+colnames(wtvswthu) = names
+colnames(dnj4vsdnj4hu) = names
+colnames(wtvsdnj4) = names
+colnames(wthuvsdnj4hu) = names
+
+
+
+wtvswthu_sel = wtvswthu %>%
+  filter(selected == "true") %>%
+  filter(pvalue..wtvswthu.<=0.05)
+dnj4vsdnj4hu_sel = dnj4vsdnj4hu %>%
+  filter(selected =="true") %>%
+  filter(pvalue..dnj4vsdnj4hu.<=0.05)
+wtvsdnj4_sel = wtvsdnj4 %>%
+  filter(selected == "true") %>%
+  filter(pvalue..wtvsdnj4.<=0.05)
+wthuvsdnj4hu_sel = wthuvsdnj4hu %>%
+  filter(selected =="true") %>%
+  filter(pvalue..wthuvsdnj4hu.<=0.05)
+
+
+
+
+```
+
+```{r,wtvswthu}
+
+#plotting all hits
+#up
+wtvswthu_up = wtvswthu_sel %>%
+  filter(NES..wtvswthu.>0)
+wtvswthu_up$GS_DESCR = factor(wtvswthu_up$GS_DESCR, levels=wtvswthu_up[order(wtvswthu_up$NES..wtvswthu.), "GS_DESCR"])
+
+plot1 = ggplot(wtvswthu_up,aes(x=NES..wtvswthu.,y=GS_DESCR,color = pvalue..wtvswthu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvswthu_significant_pathways_up.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#Down
+wtvswthu_down = wtvswthu_sel %>%
+  filter(NES..wtvswthu.<0)
+wtvswthu_down$GS_DESCR = factor(wtvswthu_down$GS_DESCR, levels=wtvswthu_down[order(wtvswthu_down$NES..wtvswthu.), "GS_DESCR"])
+
+plot1 = ggplot(wtvswthu_down,aes(x=NES..wtvswthu.,y=GS_DESCR,color = pvalue..wtvswthu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvswthu_significant_pathways_down.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#DNA_damage
+#up
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",wtvswthu_up$GS_DESCR)
+fgRes_sig_dnadamage_up = wtvswthu_up[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_up,aes(x=NES..wtvswthu.,y=GS_DESCR,color = pvalue..wtvswthu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvswthu_DNA_damage_related_up.pdf",plot = plot1)
+
+#down
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",wtvswthu_down$GS_DESCR)
+fgRes_sig_dnadamage_down = wtvswthu_down[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_down,aes(x=NES..wtvswthu.,y=GS_DESCR,color = pvalue..wtvswthu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvswthu_DNA_damage_related_down.pdf",plot = plot1)
+#metal and iron
+#up
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",wtvswthu_up$GS_DESCR)
+fgRes_sig_metal_up = wtvswthu_up[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_up,aes(x=NES..wtvswthu.,y=GS_DESCR,color = pvalue..wtvswthu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvswthu_metal_related_up.pdf",plot = plot1)
+
+#down
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",wtvswthu_down$GS_DESCR)
+fgRes_sig_metal_down = wtvswthu_down[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_down,aes(x=NES..wtvswthu.,y=GS_DESCR,color = pvalue..wtvswthu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvswthu_metal_related_down.pdf",plot = plot1)
+```
+
+```{r,dnj4vsdnj4ha}
+
+#plotting all hits
+#up
+dnj4vsdnj4hu_up = dnj4vsdnj4hu_sel %>%
+  filter(NES..dnj4vsdnj4hu.>0)
+dnj4vsdnj4hu_up$GS_DESCR = factor(dnj4vsdnj4hu_up$GS_DESCR, levels=dnj4vsdnj4hu_up[order(dnj4vsdnj4hu_up$NES..dnj4vsdnj4hu.), "GS_DESCR"])
+
+plot1 = ggplot(dnj4vsdnj4hu_up,aes(x=NES..dnj4vsdnj4hu.,y=GS_DESCR,color = pvalue..dnj4vsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_blank())+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("dnj4vsdnj4hu_significant_pathways_up.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#Down
+dnj4vsdnj4hu_down = dnj4vsdnj4hu_sel %>%
+  filter(NES..dnj4vsdnj4hu.<0)
+dnj4vsdnj4hu_down$GS_DESCR = factor(dnj4vsdnj4hu_down$GS_DESCR, levels=dnj4vsdnj4hu_down[order(dnj4vsdnj4hu_down$NES..dnj4vsdnj4hu.), "GS_DESCR"])
+
+plot1 = ggplot(dnj4vsdnj4hu_down,aes(x=NES..dnj4vsdnj4hu.,y=GS_DESCR,color = pvalue..dnj4vsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_blank())+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("dnj4vsdnj4hu_significant_pathways_down.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#DNA_damage
+#up
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",dnj4vsdnj4hu_up$GS_DESCR)
+fgRes_sig_dnadamage_up = dnj4vsdnj4hu_up[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_up,aes(x=NES..dnj4vsdnj4hu.,y=GS_DESCR,color = pvalue..dnj4vsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("dnj4vsdnj4hu_DNA_damage_related_up.pdf",plot = plot1)
+
+#down
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",dnj4vsdnj4hu_down$GS_DESCR)
+fgRes_sig_dnadamage_down = dnj4vsdnj4hu_down[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_down,aes(x=NES..dnj4vsdnj4hu.,y=GS_DESCR,color = pvalue..dnj4vsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("dnj4vsdnj4hu_DNA_damage_related_down.pdf",plot = plot1)
+#metal and iron
+#up
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",dnj4vsdnj4hu_up$GS_DESCR)
+fgRes_sig_metal_up = dnj4vsdnj4hu_up[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_up,aes(x=NES..dnj4vsdnj4hu.,y=GS_DESCR,color = pvalue..dnj4vsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("dnj4vsdnj4hu_metal_related_up.pdf",plot = plot1)
+
+#down
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",dnj4vsdnj4hu_down$GS_DESCR)
+fgRes_sig_metal_down = dnj4vsdnj4hu_down[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_down,aes(x=NES..dnj4vsdnj4hu.,y=GS_DESCR,color = pvalue..dnj4vsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("dnj4vsdnj4hu_metal_related_down.pdf",plot = plot1)
+```
+
+```{r,wtvsdnj4}
+#plotting all hits
+#up
+wtvsdnj4_up = wtvsdnj4_sel %>%
+  filter(NES..wtvsdnj4.>0)
+wtvsdnj4_up$GS_DESCR = factor(wtvsdnj4_up$GS_DESCR, levels=wtvsdnj4_up[order(wtvsdnj4_up$NES..wtvsdnj4.), "GS_DESCR"])
+
+plot1 = ggplot(wtvsdnj4_up,aes(x=NES..wtvsdnj4.,y=GS_DESCR,color = pvalue..wtvsdnj4.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_blank())+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvsdnj4_significant_pathways_up.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#Down
+wtvsdnj4_down = wtvsdnj4_sel %>%
+  filter(NES..wtvsdnj4.<0)
+wtvsdnj4_down$GS_DESCR = factor(wtvsdnj4_down$GS_DESCR, levels=wtvsdnj4_down[order(wtvsdnj4_down$NES..wtvsdnj4.), "GS_DESCR"])
+
+plot1 = ggplot(wtvsdnj4_down,aes(x=NES..wtvsdnj4.,y=GS_DESCR,color = pvalue..wtvsdnj4.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_blank())+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvsdnj4_significant_pathways_down.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#DNA_damage
+#up
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",wtvsdnj4_up$GS_DESCR)
+fgRes_sig_dnadamage_up = wtvsdnj4_up[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_up,aes(x=NES..wtvsdnj4.,y=GS_DESCR,color = pvalue..wtvsdnj4.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvsdnj4_DNA_damage_related_up.pdf",plot = plot1)
+
+#down
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",wtvsdnj4_down$GS_DESCR)
+fgRes_sig_dnadamage_down = wtvsdnj4_down[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_down,aes(x=NES..wtvsdnj4.,y=GS_DESCR,color = pvalue..wtvsdnj4.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvsdnj4_DNA_damage_related_down.pdf",plot = plot1)
+#metal and iron
+#up
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",wtvsdnj4_up$GS_DESCR)
+fgRes_sig_metal_up = wtvsdnj4_up[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_up,aes(x=NES..wtvsdnj4.,y=GS_DESCR,color = pvalue..wtvsdnj4.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvsdnj4_metal_related_up.pdf",plot = plot1)
+
+#down
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",wtvsdnj4_down$GS_DESCR)
+fgRes_sig_metal_down = wtvsdnj4_down[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_down,aes(x=NES..wtvsdnj4.,y=GS_DESCR,color = pvalue..wtvsdnj4.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wtvsdnj4_metal_related_down.pdf",plot = plot1)
+
+```
+
+
+```{r,wthuvsdnj4hu}
+#plotting all hits
+#up
+wthuvsdnj4hu_up = wthuvsdnj4hu_sel %>%
+  filter(NES..wthuvsdnj4hu.>0)
+wthuvsdnj4hu_up$GS_DESCR = factor(wthuvsdnj4hu_up$GS_DESCR, levels=wthuvsdnj4hu_up[order(wthuvsdnj4hu_up$NES..wthuvsdnj4hu.), "GS_DESCR"])
+
+plot1 = ggplot(wthuvsdnj4hu_up,aes(x=NES..wthuvsdnj4hu.,y=GS_DESCR,color = pvalue..wthuvsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_blank())+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wthuvsdnj4hu_significant_pathways_up.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#Down
+wthuvsdnj4hu_down = wthuvsdnj4hu_sel %>%
+  filter(NES..wthuvsdnj4hu.<0)
+wthuvsdnj4hu_down$GS_DESCR = factor(wthuvsdnj4hu_down$GS_DESCR, levels=wthuvsdnj4hu_down[order(wthuvsdnj4hu_down$NES..wthuvsdnj4hu.), "GS_DESCR"])
+
+plot1 = ggplot(wthuvsdnj4hu_down,aes(x=NES..wthuvsdnj4hu.,y=GS_DESCR,color = pvalue..wthuvsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_blank())+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wthuvsdnj4hu_significant_pathways_down.pdf",plot = plot1,height=4 ,dpi = 120)
+
+#DNA_damage
+#up
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",wthuvsdnj4hu_up$GS_DESCR)
+fgRes_sig_dnadamage_up = wthuvsdnj4hu_up[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_up,aes(x=NES..wthuvsdnj4hu.,y=GS_DESCR,color = pvalue..wthuvsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wthuvsdnj4hu_DNA_damage_related_up.pdf",plot = plot1)
+
+#down
+DNA_damagevalues = grep("repair|DNA|damage|recombination|homologous",wthuvsdnj4hu_down$GS_DESCR)
+fgRes_sig_dnadamage_down = wthuvsdnj4hu_down[DNA_damagevalues,]
+
+plot1 = ggplot(fgRes_sig_dnadamage_down,aes(x=NES..wthuvsdnj4hu.,y=GS_DESCR,color = pvalue..wthuvsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wthuvsdnj4hu_DNA_damage_related_down.pdf",plot = plot1)
+#metal and iron
+#up
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",wthuvsdnj4hu_up$GS_DESCR)
+fgRes_sig_metal_up = wthuvsdnj4hu_up[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_up,aes(x=NES..wthuvsdnj4hu.,y=GS_DESCR,color = pvalue..wthuvsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wthuvsdnj4hu_metal_related_up.pdf",plot = plot1)
+
+#down
+metalvalues = grep("metal|homeostasis|iron|siderophore|transport",wthuvsdnj4hu_down$GS_DESCR)
+fgRes_sig_metal_down = wthuvsdnj4hu_down[metalvalues,]
+
+plot1 = ggplot(fgRes_sig_metal_down,aes(x=NES..wthuvsdnj4hu.,y=GS_DESCR,color = pvalue..wthuvsdnj4hu.))+
+  geom_point(aes(size = gs_size))+
+  theme_bw()+
+  theme(axis.text.y = element_text(angle = 0))+
+  labs(y="GO terms",x="Escore")+
+  scale_color_gradient(low = "blue", high = "red")+
+  labs(color = "P value")
+
+ggsave("wthuvsdnj4hu_metal_related_down.pdf",plot = plot1)
+```
